@@ -117,7 +117,7 @@ label {
 input {
     width: 100%;
     padding: 16px;
-    border: none;
+    /*border: none;*/
     border-radius: 8px;
     font-size: 15px;
     background: var(--input-bg);
@@ -271,6 +271,7 @@ input:focus {
     background: var(--chat-background);
     position: relative;
     min-height: 0;
+    
 }
 
 .messages-container {
@@ -566,3 +567,25 @@ input:focus {
     border-radius: 50%;
     background: var(--online-indicator);
 }
+
+/* SOLUCIÓN DE EMERGENCIA - ELIMINAR DESPUÉS 
+#messages-container .message {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: #005c4b !important;
+    color: white !important;
+    border: 2px solid red !important;
+    margin: 5px 0 !important;
+    padding: 10px !important;
+}
+
+#messages-container .own-message {
+    background: #005c4b !important;
+    align-self: flex-end !important;
+}
+
+#messages-container .other-message {
+    background: #202c33 !important;
+    align-self: flex-start !important;
+}*/

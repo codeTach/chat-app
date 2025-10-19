@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-//Starlyn Nunez + AI
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -68,8 +68,19 @@ io.on('connection', (socket) => {
       userCount: room.users.length
     });
 
+    // VALIDAR Y ENVIAR HISTORIAL CORRECTAMENTE
+    console.log('📤 Enviando historial a nuevo usuario:', username);
+    console.log('📦 Mensajes en la sala:', room.messages.length);
+    
+    // Validar estructura de mensajes antes de enviar
+    const validMessages = room.messages.filter(msg => 
+      msg && msg.username && msg.content && msg.timestamp
+    );
+    
+    console.log('✅ Mensajes válidos:', validMessages.length);
+    
     // Enviar historial de mensajes al nuevo usuario
-    socket.emit('message-history', room.messages);
+    socket.emit('message-history', validMessages);
 
     // Confirmar unión exitosa
     socket.emit('room-joined', {
@@ -82,7 +93,7 @@ io.on('connection', (socket) => {
     console.log(`Usuario ${username} se unió a la sala ${roomCode}`);
   });
 
-  // Crear nueva sala (MODIFICADO para salas personalizadas)
+  // Crear nueva sala personalizada
   socket.on('create-room', (data) => {
     const { username, roomCode } = data;
 
@@ -106,7 +117,7 @@ io.on('connection', (socket) => {
       messages: [],
       closed: false,
       createdAt: new Date(),
-      isCustom: true // Marcar como sala personalizada
+      isCustom: true
     };
 
     rooms.set(roomCode, room);
@@ -140,11 +151,11 @@ io.on('connection', (socket) => {
     console.log(`Sala personalizada ${roomCode} creada por ${username}`);
   });
 
-  // Crear sala aleatoria (OPCIONAL - para mantener la funcionalidad original)
+  // Crear sala aleatoria
   socket.on('create-random-room', (data) => {
     const { username } = data;
     
-    // Generar código aleatorio de 4 dígitos (funcionalidad original)
+    // Generar código aleatorio de 4 dígitos
     let roomCode;
     do {
       roomCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -195,24 +206,34 @@ io.on('connection', (socket) => {
   // Enviar mensaje
   socket.on('send-message', (data) => {
     const user = users.get(socket.id);
-    if (!user) return;
+    if (!user) {
+      console.log('❌ Usuario no encontrado para enviar mensaje');
+      return;
+    }
 
     const room = rooms.get(user.roomCode);
-    if (!room || room.closed) return;
+    if (!room || room.closed) {
+      console.log('❌ Sala no encontrada o cerrada');
+      return;
+    }
 
+    // CREAR MENSAJE CON ESTRUCTURA CORRECTA
     const message = {
       id: Date.now().toString(),
       username: user.username,
       content: data.content,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(), // Usar ISO string para mejor compatibilidad
       type: 'user-message'
     };
+
+    console.log('💾 Guardando mensaje:', message);
 
     // Guardar mensaje
     room.messages.push(message);
 
     // Enviar a todos en la sala
     io.to(user.roomCode).emit('new-message', message);
+    console.log('📢 Mensaje enviado a la sala:', user.roomCode);
   });
 
   // Cerrar sala (solo el creador)
@@ -259,19 +280,19 @@ io.on('connection', (socket) => {
           userCount: room.users.length
         });
 
-        // Si el creador se desconecta y es sala personalizada, mantenerla abierta
-        if (user.isCreator && room.users.length > 0 && !room.isCustom) {
-          room.closed = true;
-          io.to(user.roomCode).emit('room-closed', {
-            closedBy: 'Sistema (creador desconectado)',
-            timestamp: new Date()
-          });
+      if (room.users.length === 0) {
+    // Cerrar solo si NO QUEDAN USUARIOS
+    console.log(`🚪 Cerrando sala ${user.roomCode} (sin usuarios)`);
+    room.closed = true;
+    
+    setTimeout(() => {
+        if (rooms.has(user.roomCode) && rooms.get(user.roomCode).users.length === 0) {
+            rooms.delete(user.roomCode);
         }
-
-        // Si no quedan usuarios y no es sala personalizada, eliminar la sala
-        if (room.users.length === 0 && !room.isCustom) {
-          rooms.delete(user.roomCode);
-        }
+    }, 30000);
+    console.log(`🚪 Sala ${user.roomCode} (sin usuarios) ha sido cerrada`);
+}
+// Si hay usuarios pero el creador se fue, la sala sigue activa sin cambios
       }
       
       users.delete(socket.id);
@@ -283,5 +304,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
 });

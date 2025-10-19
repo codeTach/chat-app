@@ -5,6 +5,7 @@ class ChatApp {
         this.currentUser = null;
         this.isCreator = false;
         this.isCustomRoom = false;
+        this.pendingMessageHistory = null; // Buffer para historial
         
         this.initializeElements();
         this.initializeEventListeners();
@@ -69,8 +70,7 @@ class ChatApp {
         this.socket = io();
         
         this.socket.on('connect', () => {
-            console.log('Conectado al servidor');
-            this.showSystemMessage('✅ Conectado al servidor', 'info');
+            console.log('✅ Conectado al servidor');
         });
         
         this.socket.on('disconnect', () => {
@@ -82,26 +82,40 @@ class ChatApp {
         });
         
         this.socket.on('room-created', (data) => {
+            console.log('🏠 Evento room-created recibido:', data);
             this.handleRoomJoined(data, true);
         });
         
         this.socket.on('room-joined', (data) => {
+            console.log('🔗 Evento room-joined recibido:', data);
             this.handleRoomJoined(data, false);
         });
         
         this.socket.on('new-message', (message) => {
-            this.displayMessage(message, message.username === this.currentUser);
+            console.log('📨 Nuevo mensaje recibido:', message);
+            // Solo procesar si ya estamos en una sala
+            if (this.currentRoom) {
+                this.displayMessage(message, message.username === this.currentUser);
+            }
         });
         
+        // HISTORIAL DE MENSAJES - CON BUFFER
         this.socket.on('message-history', (messages) => {
-            this.messagesContainer.innerHTML = '';
-            if (messages.length === 0) {
-                this.showSystemMessage('💬 Esta sala está vacía. ¡Sé el primero en enviar un mensaje!', 'info');
+            console.log('=== 📥 HISTORIAL RECIBIDO EN CLIENTE ===');
+            console.log('📦 Mensajes recibidos:', messages.length);
+            console.log('🔍 Estado actual ANTES de procesar:', {
+                currentRoom: this.currentRoom,
+                currentUser: this.currentUser
+            });
+
+            // Si ya estamos en una sala, procesar inmediatamente
+            if (this.currentRoom && this.currentUser) {
+                console.log('✅ Sala activa - Procesando historial inmediatamente');
+                this.processMessageHistory(messages);
             } else {
-                messages.forEach(message => {
-                    this.displayMessage(message, message.username === this.currentUser);
-                });
-                this.scrollToBottom();
+                // Si no estamos en sala, guardar el historial para después
+                console.log('⏳ Sala no ready - Guardando historial en buffer');
+                this.pendingMessageHistory = messages;
             }
         });
         
@@ -128,6 +142,38 @@ class ChatApp {
         this.socket.on('force-disconnect', () => {
             this.leaveRoom();
         });
+    }
+
+    // NUEVO MÉTODO: Procesar historial de mensajes
+    processMessageHistory(messages) {
+        console.log('🔄 processMessageHistory ejecutándose...');
+        
+        // Validar mensajes
+        const validMessages = messages.filter(msg => 
+            msg && msg.username && msg.content
+        );
+        
+        console.log('✅ Mensajes válidos:', validMessages.length);
+
+        if (validMessages.length === 0) {
+            console.log('🔄 No hay mensajes válidos');
+            this.messagesContainer.innerHTML = '';
+            this.showSystemMessage('💬 Esta sala está vacía. ¡Sé el primero en enviar un mensaje!', 'info');
+        } else {
+            console.log('🔄 Renderizando', validMessages.length, 'mensajes');
+            
+            // LIMPIAR CONTENEDOR
+            this.messagesContainer.innerHTML = '';
+            
+            // RENDERIZAR CADA MENSAJE
+            validMessages.forEach((message, index) => {
+                console.log(`📝 Renderizando mensaje ${index + 1}:`, message.username);
+                this.displayMessage(message, message.username === this.currentUser);
+            });
+            
+            console.log('✅ Historial procesado. Mensajes en DOM:', this.messagesContainer.children.length);
+            this.scrollToBottom();
+        }
     }
 
     validateInputs() {
@@ -198,10 +244,19 @@ class ChatApp {
     }
 
     handleRoomJoined(data, isCreator) {
+        console.log('🎉 handleRoomJoined ejecutándose con:', data);
+        
         this.currentRoom = data.roomCode;
         this.currentUser = data.username;
         this.isCreator = isCreator;
         this.isCustomRoom = data.isCustom || false;
+        
+        console.log('✅ Estado actualizado:', {
+            currentRoom: this.currentRoom,
+            currentUser: this.currentUser,
+            isCreator: this.isCreator,
+            isCustomRoom: this.isCustomRoom
+        });
         
         // Actualizar UI
         this.currentRoomCode.textContent = this.currentRoom;
@@ -237,6 +292,13 @@ class ChatApp {
             this.showSystemMessage(`💡 Comparte este código con tus amigos: "${this.currentRoom}"`, 'info');
         }
         
+        // ✅ NUEVO: Procesar historial pendiente si existe
+        if (this.pendingMessageHistory) {
+            console.log('📦 Procesando historial pendiente...');
+            this.processMessageHistory(this.pendingMessageHistory);
+            this.pendingMessageHistory = null; // Limpiar buffer
+        }
+        
         // Enfocar el input de mensaje con delay
         setTimeout(() => {
             this.messageInput.focus();
@@ -255,30 +317,64 @@ class ChatApp {
     }
 
     displayMessage(message, isOwnMessage) {
-        const messageElement = document.createElement('div');
-        messageElement.className = `message ${isOwnMessage ? 'own-message' : 'other-message'}`;
+        // Validar que el mensaje tenga la estructura correcta
+        if (!message || !message.username || !message.content) {
+            console.error('❌ Mensaje inválido recibido:', message);
+            return;
+        }
 
-        const time = new Date(message.timestamp);
-        const timeString = time.toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        messageElement.innerHTML = `
-            <div class="message-header">
-                <span class="sender-name">${message.username}</span>
-                <span class="message-time">${timeString}</span>
-            </div>
-            <div class="message-content">${message.content}</div>
-        `;
+        try {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${isOwnMessage ? 'own-message' : 'other-message'}`;
+            
+            /* ESTILOS DE DEPURACIÓN - FORZAR VISIBILIDAD
+            messageElement.style.border = '3px solid green';
+            messageElement.style.background = isOwnMessage ? '#005c4b' : '#202c33';
+            messageElement.style.color = 'white';
+            messageElement.style.padding = '10px';
+            messageElement.style.margin = '5px 0';
+            messageElement.style.display = 'block';
+            messageElement.style.opacity = '1';
+            messageElement.style.visibility = 'visible';*/
 
-        this.messagesContainer.appendChild(messageElement);
-        this.scrollToBottom();
+            // Manejar timestamp
+            let time;
+            try {
+                time = new Date(message.timestamp);
+                if (isNaN(time.getTime())) {
+                    time = new Date();
+                }
+            } catch (e) {
+                time = new Date();
+            }
+
+            const timeString = time.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <span class="sender-name">${this.escapeHtml(message.username)}</span>
+                    <span class="message-time">${timeString}</span>
+                </div>
+                <div class="message-content">${this.escapeHtml(message.content)}</div>
+            `;
+
+            this.messagesContainer.appendChild(messageElement);
+            this.scrollToBottom();
+        } catch (error) {
+            console.error('💥 Error en displayMessage:', error);
+        }
     }
 
     scrollToBottom() {
         setTimeout(() => {
-            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            try {
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            } catch (error) {
+                console.error('❌ Error en scrollToBottom:', error);
+            }
         }, 100);
     }
 
@@ -308,6 +404,7 @@ class ChatApp {
         this.currentUser = null;
         this.isCreator = false;
         this.isCustomRoom = false;
+        this.pendingMessageHistory = null; // Limpiar buffer también
         
         // Volver a pantalla de bienvenida
         this.chatScreen.classList.remove('active');
@@ -337,9 +434,20 @@ class ChatApp {
             this.formMessage.classList.add('hidden');
         }, 4000);
     }
+
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 }
 
 // Inicializar la aplicación cuando se carga la página
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 ChatApp inicializando...');
     new ChatApp();
 });
