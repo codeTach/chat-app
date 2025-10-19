@@ -1,0 +1,25 @@
+{
+  "name": "chat-app",
+  "version": "1.0.0",
+  "description": "Aplicacion de chat en tiempo real con salas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "chat",
+    "Chat en tiempo real",
+    "chatApp"
+  ],
+  "author": "Starlyn Nunez",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

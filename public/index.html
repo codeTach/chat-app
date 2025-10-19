@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--Starlyn + AI-->
+    <!--Desarrollado 90% AI, 10% Humano-->
+    <title>💬 ChatApp</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💬 ChatApp</h1>
+            <p>Crea salas personalizadas o únete a existentes</p>
+        </div>
+        
+        <div class="content">
+            <!-- Pantalla de Bienvenida -->
+            <div id="welcome-screen" class="screen active">
+                <div class="form-container">
+                    <div class="form-content">
+                        <div class="form-group">
+                            <label for="username">👤 Tu Nombre</label>
+                            <input type="text" id="username" placeholder="Ingresa tu nombre" maxlength="20" required>
+                        </div>
+                        
+                        <div class="button-group">
+                            <!-- Crear Sala Personalizada -->
+                            <div class="join-section">
+                                <div class="form-group">
+                                    <label for="custom-room-code">🏠 Crear Sala Personalizada</label>
+                                    <input type="text" id="custom-room-code" placeholder="Ej: amigos, familia, trabajo" maxlength="20" required>
+                                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 5px; display: block;">
+                                        Elige un nombre fácil de recordar (2-20 caracteres)
+                                    </small>
+                                </div>
+                                <button id="create-custom-room-btn" class="btn btn-primary">
+                                    🏠 Crear Sala Personalizada
+                                </button>
+                            </div>
+                            
+                            <div class="separator">o</div>
+                            
+                            <!-- Crear Sala Rápida -->
+                            <button id="create-random-room-btn" class="btn btn-secondary">
+                                🎲 Crear Sala Rápida
+                            </button>
+                            
+                            <div class="separator">o únete a una sala</div>
+                            
+                            <!-- Unirse a Sala -->
+                            <div class="join-section">
+                                <div class="form-group">
+                                    <label for="room-code">🔑 Unirse a Sala Existente</label>
+                                    <input type="text" id="room-code" placeholder="Nombre o código de sala" maxlength="20" required>
+                                </div>
+                                <button id="join-room-btn" class="btn btn-secondary">
+                                    🔑 Unirse a Sala
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="form-message" class="message-form hidden"></div>
+                    </div>
+                </div>
+    
+
+            </div>
+            
+            
+            <!-- Pantalla de Chat -->
+            <div id="chat-screen" class="screen">
+                <!-- Header del Chat -->
+                <div class="chat-header">
+                    <div class="room-info">
+                        <h2>💬 Sala: <span id="current-room-code"></span></h2>
+                        <div class="room-status">
+                            <span class="online-users">
+                                <span class="online-dot"></span>
+                                <span id="user-count">1</span> conectados
+                            </span>
+                            <span id="room-status-badge" class="status-badge active">Activa</span>
+                            <span id="room-type-badge" class="status-badge" style="background: #9b59b6; display: none;"></span>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button id="close-room-btn" class="btn btn-danger hidden">
+                            🚫 Cerrar
+                        </button>
+                        <button id="leave-room-btn" class="btn btn-secondary">
+                            👋 Salir
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Área de Mensajes -->
+                <div class="chat-container">
+                    <div id="messages-container" class="messages-container">
+                        <div class="system-message info">
+                            💬 Bienvenido al chat. Los mensajes aparecerán aquí.
+                        </div>
+                    </div>
+                    
+                    <!-- Input para enviar mensajes -->
+                    <div class="input-container">
+                        <input type="text" id="message-input" placeholder="Escribe un mensaje..." maxlength="500">
+                        <button id="send-btn" class="btn btn-primary">
+                            📤
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
